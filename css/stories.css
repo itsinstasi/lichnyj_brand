@@ -59,6 +59,38 @@
 	width: 87px;
 	margin: 0 auto;
 }
+
+.stories__slide__check .stories__slide-pic:before{
+	content: '';
+	display: none;
+	position: absolute;
+	width: 80%;
+	height: 80%;
+	top: 0;
+	left: 10%;
+	z-index: 3;
+	background: rgba(0,0,0,.85);
+}
+.stories__slide__check .stories__slide-pic:after{
+	content: "\f00c";
+	font: normal normal normal 30px/1 'FontAwesome';
+	display: none;
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	z-index: 4;
+	color: #fff;
+	text-align: right;	
+}
+.stories__slide__check input{display: none;}
+.stories__slide-pic:hover:before,
+.stories__slide__check input:checked + .stories__slide-pic:after,
+.stories__slide__check input:checked + .stories__slide-pic:before{
+	display: block;
+	-webkit-animation: fadeIn both .25s;
+	animation: fadeIn both .25s;
+}
+
 .stories__slide-pic{
 	width: 87px;
 	height: 87px;
