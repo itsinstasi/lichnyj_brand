@@ -260,47 +260,58 @@ var currentTitle = '';
 var tags = {
 };
 
+function cleanupStories() {
+	$(".items-item").each(function() {
+		$(this).find("input").prop("checked", false);
+	});
+}
+
+function leaveOneStory() {
+	$(".stories__slide").each(function() {
+		if ($(this).prop("title") != currentTitle) {
+			$(this).find("input").prop("checked", false);
+		}
+	});
+}
+
+function refreshChoosen() {
+	if (currentTitle == ''  || tags[currentTitle] == null) {
+		$("#choosen").text(0);
+	} else {
+		$("#choosen").text(tags[currentTitle].length);
+	}
+}
+
+var storyClick = function () {
+	var title = $(this).closest(".stories__slide").prop("title");
+	if ($(this).is(':checked')) {
+		currentTitle = title;
+
+		leaveOneStory();
+
+		// Set all choosen blocks.
+		if (tags[currentTitle] != null) {
+			$(".items-item").each(function() {
+				var checkbox = $(this).find("input");
+				checkbox.prop("checked", $.inArray(checkbox.prop("id"), tags[currentTitle]) !== -1);
+			});
+		} else {
+			cleanupStories();
+		}
+	} else {
+		currentTitle = "";
+
+		cleanupStories();
+	}
+	$(".search__input").val(currentTitle);
+	refreshChoosen();
+}
+
 $(document).ready(function() {
 	$("#total").text($(".items-item").length);
 
     $(".stories__slide").each(function() {
-		$(this).find("input").click(function() {
-			var title = $(this).closest(".stories__slide").prop("title");
-
-			if ($(this).is(':checked')) {
-				currentTitle = title;
-
-				// Only one story in choosen
-				$(".stories__slide").each(function() {
-					if ($(this).prop("title") != currentTitle) {
-						$(this).find("input").prop("checked", false);
-					}
-				});
-
-				// Set all choosen blocks.
-				if (tags[currentTitle] != null) {
-					$(".items-item").each(function() {
-						var checkbox = $(this).find("input");
-						checkbox.prop("checked", $.inArray(checkbox.prop("id"), tags[currentTitle]) !== -1);
-					});
-					$("#choosen").text(tags[currentTitle].length);
-				} else {
-					$(".items-item").each(function() {
-						$(this).find("input").prop("checked", false);
-					});
-					$("#choosen").text(0);
-				}
-			} else {
-				currentTitle = "";
-
-				// Clear all choosen blocks.
-				$(".items-item").each(function() {
-					$(this).find("input").prop("checked", false);
-				});
-				$("#choosen").text(0);
-			}
-			$(".search__input").val(currentTitle);
-		});
+		$(this).find("input").click(storyClick);
 	});
 
     $(".items-item").each(function() {
@@ -323,16 +334,15 @@ $(document).ready(function() {
 				$(this).prop("checked", false);
 			}
 		});
-
 	});
 
-	$(".search__btn").click(function() {
+	$(".search__btn").click(function(){
 		var newTitle = $(".search__input").val();
 
 		if (currentTitle != '' && newTitle != '') {
 			tags[newTitle] = tags[currentTitle];
 
-			var story = $(".stories__slide").filter(function() {
+			var story = $(".stories__slide").filter(function(){
 				return $(this).prop("title") == currentTitle;
 			}).first();
 			story.prop("title", newTitle);
@@ -354,7 +364,7 @@ $(document).ready(function() {
 			});
 
 			if (stories.length == 0) {
-				$(".swiper-wrapper").append(`
+				$(".swiper-wrapper").prepend(`
 							<div class="swiper-slide">
 								<div class="stories__slide" title="` + newTitle + `">
 									<label class="stories__slide__check">
@@ -365,6 +375,8 @@ $(document).ready(function() {
 								</div>
 							</div>
 `);
+				var added = $(".swiper-slide").first();
+				added.find("input").click(storyClick);
 			}
 		}
 	});
