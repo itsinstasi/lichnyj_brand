@@ -308,6 +308,21 @@ function refreshChoosen() {
 	}
 }
 
+var getUrlParameter = function getUrlParameter(sParam) {
+    var sPageURL = window.location.search.substring(1),
+        sURLVariables = sPageURL.split('&'),
+        sParameterName,
+        i;
+
+    for (i = 0; i < sURLVariables.length; i++) {
+        sParameterName = sURLVariables[i].split('=');
+
+        if (sParameterName[0] === sParam) {
+            return sParameterName[1] === undefined ? true : decodeURIComponent(sParameterName[1]);
+        }
+    }
+};
+
 var storyClick = function () {
 	var title = $(this).closest(".stories__slide").prop("title");
 	if ($(this).is(':checked')) {
@@ -322,7 +337,7 @@ var storyClick = function () {
 				checkbox.prop("checked", $.inArray(checkbox.prop("id"), tags[currentTitle]) !== -1);
 			});
 		} else {
-			cleanupStories();
+			cleanupItems();
 		}
 	} else {
 		currentTitle = '';
@@ -333,23 +348,23 @@ var storyClick = function () {
 	refreshChoosen();
 }
 
-function setStoryBackground() {
+function setStoryBackground(title) {
 	$(".stories__slide").each(function() {
-		if ($(this).prop("title") == currentTitle) {
+		if ($(this).prop("title") == title) {
 			var divPic = $(this).find('.stories__slide-pic');
 
-			var img = getStoryBackground();
+			var img = getStoryBackground(title);
 			divPic.css("background-image", "url(" + img + ")");
 		}
 	});
 }
 
-function getStoryBackground() {
-	if (currentTitle == null) {
+function getStoryBackground(title) {
+	if (title == null) {
 		return null;
 	}
 
-	var tag = tags[currentTitle][0];
+	var tag = tags[title][0];
 
 	var item = $(".items-item").filter(function() {
 		return $(this).find("input").prop("id") == tag;
@@ -358,7 +373,118 @@ function getStoryBackground() {
 	return item.find("img").prop('src');
 }
 
+function addStory(title) {
+	$(".swiper-wrapper").prepend(`
+							<div class="swiper-slide">
+								<div class="stories__slide" title="` + title + `">
+									<label class="stories__slide__check">
+										<input type="checkbox" />
+										<div class="stories__slide-pic" style=""></div>
+										<div class="stories__slide-txt">` + title + `</div>
+									</label>
+								</div>
+							</div>
+`);
+	var added = $(".swiper-slide").first();
+	added.width(added.height());
+	added.find("input").click(storyClick);
+}
+
+function loadStories() {
+	if (key == null) {
+		return;
+	}
+
+	$.ajax({
+		url: "https://admapi.itsinsta.site/api/stories",
+		type: "GET",
+		dataType: 'json',
+		beforeSend: function(xhr) { xhr.setRequestHeader('key', key); },
+		success: function (data) { 
+			tags = {};
+			$(".stories__slide").remove();
+
+			$.each(data, function(index, element) {
+				tags[element.title] = element.posts;
+
+				addStory(element.title);
+
+				setStoryBackground(element.title);
+			});
+		}
+	});
+}
+
+function linkStoryPost(story, post) {
+	if (key == null) {
+		return;
+	}
+
+	$.ajax({
+		url: "https://admapi.itsinsta.site/api/stories/" + story + "/link/" + post,
+		type: "POST",
+		dataType: 'json',
+		beforeSend: function(xhr) { xhr.setRequestHeader('key', key); }
+	});
+}
+
+function unlinkStoryPost(story, post) {
+	if (key == null) {
+		return;
+	}
+
+	$.ajax({
+		url: "https://admapi.itsinsta.site/api/stories/" + story + "/unlink/" + post,
+		type: "POST",
+		dataType: 'json',
+		beforeSend: function(xhr) { xhr.setRequestHeader('key', key); }
+	});
+}
+
+function createStory(story) {
+	if (key == null) {
+		return;
+	}
+
+	$.ajax({
+		url: "https://admapi.itsinsta.site/api/stories/" + story,
+		type: "POST",
+		dataType: 'json',
+		beforeSend: function(xhr) { xhr.setRequestHeader('key', key); }
+	});
+}
+
+function deleteStory(story) {
+	if (key == null) {
+		return;
+	}
+
+	$.ajax({
+		url: "https://admapi.itsinsta.site/api/stories/" + story,
+		type: "DELETE",
+		dataType: 'json',
+		beforeSend: function(xhr) { xhr.setRequestHeader('key', key); }
+	});
+}
+
+function renameStory(story, newStory) {
+	if (key == null) {
+		return;
+	}
+
+	$.ajax({
+		url: "https://admapi.itsinsta.site/api/stories/" + story + "/rename/" + newStory,
+		type: "POST",
+		dataType: 'json',
+		beforeSend: function(xhr) { xhr.setRequestHeader('key', key); }
+	});
+}
+
 $(document).ready(function() {
+	key = getUrlParameter("key");
+
+	loadStories();
+
 	$("#total").text($(".items-item").length);
 
     $(".stories__slide").each(function() {
@@ -376,12 +502,16 @@ $(document).ready(function() {
 					} else {
 						tags[currentTitle] = $.merge(tags[currentTitle], [ id ]);
 					}
+
+					linkStoryPost(currentTitle, id);
 				} else {
 					tags[currentTitle] = $(tags[currentTitle]).not([ id ]).get();
+
+					unlinkStoryPost(currentTitle, id);
 				}
 
 				if (tags[currentTitle].length == 1) {
-					setStoryBackground();
+					setStoryBackground(currentTitle);
 				}
 
 				$("#choosen").text(tags[currentTitle].length);
@@ -404,6 +534,8 @@ $(document).ready(function() {
 
 			story.find(".stories__slide-txt").text(newTitle);
 
+			renameStory(currentTitle, newTitle);
+
 			currentTitle = newTitle;
 		} else if (currentTitle != '' && newTitle == '') {
 			tags[currentTitle] = [];
@@ -414,9 +546,11 @@ $(document).ready(function() {
 			
 			story.remove();
 
-			currentTitle = '';
-			cleanupItems();
+			deleteStory(currentTitle);
 
+			currentTitle = '';
+
+			cleanupItems();
 		} else if (currentTitle == '' && newTitle != '') {
 			var stories = $(".stories__slide").filter(function() {
 				return $(this).prop("title") == newTitle;
@@ -425,22 +559,11 @@ $(document).ready(function() {
 			if (stories.length == 0) {
 				currentTitle = newTitle;
 
-				$(".swiper-wrapper").prepend(`
-							<div class="swiper-slide">
-								<div class="stories__slide" title="` + newTitle + `">
-									<label class="stories__slide__check">
-										<input type="checkbox" />
-										<div class="stories__slide-pic" style=""></div>
-										<div class="stories__slide-txt">` + newTitle + `</div>
-									</label>
-								</div>
-							</div>
-`);
-				var added = $(".swiper-slide").first();
-				added.width(added.height());
-				added.find("input").click(storyClick);
+				addStory(newTitle);
 
 				refreshStories();
+
+				createStory(currentTitle);
 			}
 		}
 	});
@@ -457,6 +580,8 @@ $(document).ready(function() {
 		}).first();
 			
 		story.remove();
+
+		deleteStory(currentTitle);
 
 		currentTitle = '';
 		cleanupItems();
